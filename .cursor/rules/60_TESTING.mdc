@@ -1,0 +1,110 @@
+# 60_TESTING — TESTS COMPORTEMENTAUX
+
+---
+
+## 1) PRIORITÉ
+
+Les tests doivent protéger :
+1. **Invariants** de l'algorithme d'apprentissage
+2. **Scénarios métier** critiques
+3. **Use cases** (nominal + erreur principale)
+
+---
+
+## 2) TESTS ALGORITHME (CRITIQUES)
+
+### AdaptiveDifficultyService
+```kotlin
+@Test
+fun `should promote difficulty when success rate above 75%`()
+
+@Test
+fun `should demote difficulty when success rate below 40%`()
+
+@Test
+fun `should maintain difficulty when success rate between 40% and 75%`()
+
+@Test
+fun `should not adapt with less than 3 attempts`()
+```
+
+### SpacedRepetitionService
+```kotlin
+@Test
+fun `should prioritize questions with high forgetting probability`()
+
+@Test
+fun `should determine EXPLORATION_FOCUSED for new users`()
+
+@Test
+fun `should determine REVIEW_PREFERRED for struggling users`()
+```
+
+### HybridLearningService
+```kotlin
+@Test
+fun `should balance review and discovery according to strategy`()
+
+@Test
+fun `should fallback to adaptive when no spaced questions available`()
+```
+
+---
+
+## 3) TESTS USE CASE
+
+```kotlin
+@Test
+fun `should create review and update box on correct answer`()
+
+@Test
+fun `should reset box to 1 on incorrect answer`()
+
+@Test
+fun `should reject review when quota exceeded`()
+
+@Test
+fun `should increment usage daily on each review`()
+```
+
+---
+
+## 4) IN-MEMORY ADAPTERS
+
+```kotlin
+class InMemoryItemRepository : ItemRepository {
+    private val items = mutableMapOf<ItemId, Item>()
+    
+    override fun findById(id: ItemId) = items[id]
+    override fun save(item: Item) = item.also { items[it.id] = it }
+    fun clear() = items.clear()
+}
+```
+
+---
+
+## 5) STRUCTURE
+
+```
+src/test/kotlin/
+├── domain/
+│   ├── AdaptiveDifficultyServiceTest.kt
+│   ├── SpacedRepetitionServiceTest.kt
+│   └── LeitnerSchedulerTest.kt
+├── application/
+│   ├── SubmitReviewUseCaseTest.kt
+│   └── GenerateSessionUseCaseTest.kt
+└── integration/
+    └── HybridLearningIntegrationTest.kt
+```
+
+---
+
+## 6) ANTI-PATTERNS
+
+```
+❌ Tests ultra-fins couplés à l'implémentation interne
+❌ Snapshot tests massifs non justifiés
+❌ Mocking excessif qui teste le mock
+❌ Tests sans assertions
+```

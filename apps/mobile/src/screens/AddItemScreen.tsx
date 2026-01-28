@@ -92,7 +92,7 @@ export default function AddItemScreen({ route, navigation }: any) {
               placeholder="Enter your question"
               value={question}
               onChangeText={setQuestion}
-              multiline
+              multiline={true}
               numberOfLines={3}
             />
             <Text style={styles.label}>Answer:</Text>
@@ -101,7 +101,7 @@ export default function AddItemScreen({ route, navigation }: any) {
               placeholder="Enter the answer"
               value={answer}
               onChangeText={setAnswer}
-              multiline
+              multiline={true}
               numberOfLines={3}
             />
             <View style={styles.modalButtons}>
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   },
   modalButtons: {
     flexDirection: 'row',
-    gap: 10,
+    marginHorizontal: 5,
     marginTop: 10,
   },
   modalButton: {

@@ -1,0 +1,89 @@
+# 50_MONETIZATION — ANONYMOUS → VALEUR → PAYWALL
+
+---
+
+## 1) LE FUNNEL
+
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│  Anonymous  │ →  │   Valeur    │ →  │   Email     │ →  │  Paywall    │
+│  (device ID)│    │ (essai réel)│    │  (capture)  │    │ (premium)   │
+└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
+```
+
+---
+
+## 2) QUOTA GRATUIT
+
+```kotlin
+const val FREE_DAILY_REVIEW_LIMIT = 20
+
+// Chaque review incrémente UsageDaily.reviewsCount
+// Si non premium et reviewsCount >= limit → QUOTA_EXCEEDED (HTTP 429)
+```
+
+### Réponse quota dépassé
+```json
+{
+  "type": "about:blank",
+  "title": "Quota exceeded",
+  "status": 429,
+  "errorCode": "QUOTA_EXCEEDED",
+  "meta": {
+    "quotaLimit": 20,
+    "quotaUsed": 20
+  }
+}
+```
+
+---
+
+## 3) PREMIUM
+
+```kotlin
+// premium = true → quota illimité
+data class Profile(
+    val userId: UserId,
+    val premium: Boolean = false,
+    val createdAt: Instant
+)
+```
+
+---
+
+## 4) STRIPE CHECKOUT
+
+```
+POST /api/v1/billing/checkout
+→ Crée Stripe Checkout Session
+→ Retourne URL checkout
+
+POST /api/v1/billing/webhook
+→ Vérifie signature
+→ Sur checkout.session.completed → profile.premium = true
+```
+
+### Idempotence webhook
+```kotlin
+// Stocker stripe_event_id pour éviter double-traitement
+if (eventAlreadyProcessed(stripeEventId)) {
+    return OK // Idempotent
+}
+```
+
+---
+
+## 5) UX PAYWALL
+
+### Message clair
+```
+"Vous avez atteint votre limite de 20 révisions aujourd'hui.
+ Revenez demain ou passez à Premium pour continuer."
+
+[Voir Premium]  [Revenir demain]
+```
+
+### Pas de friction
+- Paywall au bon moment (après valeur prouvée)
+- Pas trop tôt (< 3 utilisations)
+- Pas trop tard (habitude du gratuit)

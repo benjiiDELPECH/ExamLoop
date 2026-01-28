@@ -1,0 +1,83 @@
+# 10_ARCHITECTURE — STRUCTURE EN COUCHES (KOTLIN)
+
+---
+
+## 1) LES 4 COUCHES
+
+```
+┌─────────────────────────────────────────┐
+│                  api                     │  ← Controllers, DTOs API, validation
+├─────────────────────────────────────────┤
+│              application                 │  ← Use cases, ports, orchestration
+├─────────────────────────────────────────┤
+│                domain                    │  ← Modèles métier, invariants, règles pures
+├─────────────────────────────────────────┤
+│                 infra                    │  ← DB, HTTP clients, filesystem
+└─────────────────────────────────────────┘
+```
+
+| Couche | Contenu | Dépend de |
+|--------|---------|-----------|
+| `domain` | Modèles métier, invariants, règles pures, erreurs métier | **Rien** |
+| `application` | Use cases, ports, DTO internes, résultats typés | `domain` uniquement |
+| `infra` | Adapters techniques (DB, HTTP) | `application` (ports) |
+| `api` | Controllers, DTO API, validation d'entrée | `application` (use cases) |
+
+---
+
+## 2) ORGANISATION PAR FEATURE (VERTICAL SLICE)
+
+```
+features/<feature-name>/
+├── api/
+├── application/
+├── domain/
+├── infra/
+└── tests/
+```
+
+### Règles
+- Chaque classe appartient à **une feature**
+- Une feature peut être supprimée en supprimant son dossier
+- Partage inter-features uniquement via `shared/domain` ou `shared/application`
+
+---
+
+## 3) STATELESS CORE
+
+> Le core pense. L'orchestration fait.
+> Le core ne sait pas que Spring existe.
+
+### Core (domain/application)
+- Pur, déterministe, sans I/O
+- Ne lit pas la DB
+- Ne gère pas transactions/retries/timeouts
+
+### Orchestration (api/infra)
+- Charge les données
+- Gère retries/timeouts/transactions
+- Appelle le core avec données prêtes
+- Persiste les résultats
+
+---
+
+## 4) KOTLIN STYLE
+
+### Sealed classes pour résultats
+```kotlin
+sealed class ReviewResult {
+    data class Success(val reviewState: ReviewState) : ReviewResult()
+    data class QuotaExceeded(val limit: Int, val used: Int) : ReviewResult()
+    data class ItemNotFound(val itemId: ItemId) : ReviewResult()
+}
+```
+
+### Immutabilité
+- `data class` pour modèles métier
+- `val` par défaut, `var` exceptionnel
+
+### Nommage
+- Ports : `XxxPort`
+- Adapters : `XxxAdapter`
+- Use cases : `VerbNounUseCase`
+- DTO API : `XxxRequest`, `XxxResponse`

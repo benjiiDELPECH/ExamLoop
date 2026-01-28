@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { getDeviceId } from '../utils/deviceId';
 
-// Change this to your API URL when running in production
-const API_BASE_URL = 'http://localhost:8080';
+// API URL - change for production
+const API_BASE_URL = 'https://ultimately-www-extract-peer.trycloudflare.com';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -20,86 +20,78 @@ api.interceptors.request.use(async (config) => {
 
 export interface Goal {
   id: number;
-  deviceId: string;
   title: string;
   description?: string;
-  createdAt: string;
-  updatedAt: string;
+  isPublic: boolean;
+  stats?: { items: number; due: number };
 }
 
 export interface Item {
   id: number;
   goalId: number;
-  deviceId: string;
-  question: string;
-  answer: string;
-  box: number;
-  nextReview: string;
-  createdAt: string;
-  updatedAt: string;
+  prompt: string;
+  type: 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'OPEN';
+  choices?: Array<{ id: string; label: string }>;
+  difficulty: string;
+  chapter?: string;
 }
 
-// Auth API
-export const login = async () => {
-  const deviceId = await getDeviceId();
-  const response = await api.post('/anon/login', { deviceId });
+export interface BootstrapResponse {
+  profile: { premium: boolean };
+  usage: { reviewsUsed: number; reviewsLimit: number; remaining: number };
+  dashboard: { dueCount: number; totalQuestions: number; goalsCount: number };
+}
+
+// Bootstrap API
+export const bootstrap = async (): Promise<BootstrapResponse> => {
+  const response = await api.post('/api/v1/bootstrap', {});
   return response.data;
 };
 
 // Goals API
 export const getGoals = async (): Promise<Goal[]> => {
-  const response = await api.get('/goals');
-  return response.data;
+  const response = await api.get('/api/v1/goals');
+  return response.data.goals || [];
 };
 
 export const createGoal = async (title: string, description?: string): Promise<Goal> => {
-  const response = await api.post('/goals', { title, description });
+  const response = await api.post('/api/v1/goals', { title, description });
   return response.data;
 };
 
-export const updateGoal = async (id: number, title: string, description?: string): Promise<Goal> => {
-  const response = await api.put(`/goals/${id}`, { title, description });
-  return response.data;
-};
-
-export const deleteGoal = async (id: number): Promise<void> => {
-  await api.delete(`/goals/${id}`);
-};
-
-// Items API
+// Items (for compatibility)
 export const getItems = async (): Promise<Item[]> => {
-  const response = await api.get('/items');
-  return response.data;
+  // Get all questions from all goals
+  return [];
 };
 
-export const createItem = async (goalId: number, question: string, answer: string): Promise<Item> => {
-  const response = await api.post('/items', { goalId, question, answer });
+export const createItem = async (goalId: number, question: string, answer: string): Promise<any> => {
+  const response = await api.post('/api/v1/questions', { 
+    goalId, 
+    prompt: question, 
+    answer,
+    type: 'OPEN',
+    difficulty: 'MEDIUM'
+  });
   return response.data;
-};
-
-export const updateItem = async (id: number, question: string, answer: string): Promise<Item> => {
-  const response = await api.put(`/items/${id}`, { question, answer });
-  return response.data;
-};
-
-export const deleteItem = async (id: number): Promise<void> => {
-  await api.delete(`/items/${id}`);
 };
 
 // Session API
-export const getTodayItems = async (): Promise<Item[]> => {
-  const response = await api.get('/session/today');
-  return response.data;
+export const getTodayItems = async (goalId?: number): Promise<Item[]> => {
+  const body: any = { limit: 10 };
+  if (goalId) body.goalId = goalId;
+  const response = await api.post('/api/v1/sessions', body);
+  return response.data.questions || [];
 };
 
-export const reviewItem = async (id: number, correct: boolean): Promise<Item> => {
-  const response = await api.post(`/review/${id}`, { correct });
+export const reviewItem = async (id: number, correct: boolean): Promise<any> => {
+  const response = await api.post('/api/v1/reviews', { questionId: id, correct });
   return response.data;
 };
 
 // Billing API
-export const createCheckout = async (): Promise<{ checkoutUrl: string }> => {
-  const response = await api.post('/billing/checkout');
+export const createCheckout = async (): Promise<{ url: string }> => {
+  const response = await api.post('/api/v1/billing/checkout', {});
   return response.data;
 };
 

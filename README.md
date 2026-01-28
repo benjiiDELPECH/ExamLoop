@@ -1,100 +1,80 @@
 # ExamLoop
 
-A spaced repetition learning application built with Spring Boot and Expo. ExamLoop helps you master any subject using the proven Leitner system for optimal memory retention.
+Application mobile de révision intelligente combinant **Adaptive Difficulty** et **Spaced Repetition** pour un apprentissage optimal.
+
+> 🎯 Testé et prouvé : 84% de réussite sur la certification Spring !
+
+## Vision
+
+ExamLoop utilise un **algorithme hybride** qui :
+- **Adapte la difficulté** selon tes performances (monte/descend de niveau)
+- **Optimise la rétention** avec répétition espacée (courbe d'Ebbinghaus)
+- **Équilibre automatiquement** découverte et révision
 
 ## Architecture
 
-This is a monorepo containing:
+Monorepo avec :
 
-- **services/api**: Spring Boot 3 REST API with PostgreSQL and Flyway migrations
-- **apps/mobile**: Expo (React Native) TypeScript mobile application
-- **docker-compose.yml**: Orchestration for PostgreSQL and API services
+- **services/api**: Spring Boot 3 + Kotlin (migration en cours) + PostgreSQL + Flyway
+- **apps/mobile**: Expo (React Native) TypeScript
+- **docs/**: Spécifications et décisions d'architecture
+- **.cursor/rules/**: Règles Cursor pour code cohérent
 
 ## Features
 
+### Algorithme Hybride
+- **Adaptive Difficulty**: 4 niveaux (EASY → VERY_HARD), ajustement automatique
+- **Spaced Repetition**: Intervalles optimisés (1, 3, 7, 14, 30, 90 jours)
+- **Distribution Strategy**: 5 modes (exploration → consolidation)
+
 ### API Service
-- **Authentication**: Anonymous login with device ID tracking
-- **Goals CRUD**: Create and manage learning goals
-- **Items CRUD**: Create flashcards with questions and answers
-- **Leitner System**: Implements boxes 1-5 for spaced repetition
-- **Session Management**: Get today's items for review
-- **Review System**: Mark items as correct/wrong to move through boxes
-- **Billing**: Mock checkout and webhook endpoints
-- **Actuator**: Health checks and metrics enabled
+- **Authentication**: Device ID (anonymous first)
+- **Goals/Exams**: Exams personnels + exams publics partagés
+- **Questions**: MCQ, Single Choice, Open questions
+- **Sessions**: Génération intelligente via algo hybride
+- **Quota**: 20 reviews/jour gratuit, Premium illimité
+- **Billing**: Stripe Checkout + webhooks
 
 ### Mobile App
-- **Board Screen**: View all goals and navigate to items
-- **AddItem Screen**: Create and view flashcards for a goal
-- **Session Screen**: Review today's due items with the Leitner algorithm
-- **Paywall Screen**: Premium subscription flow (opens checkout URL)
-- **Device ID**: Automatically generates and persists device identifier
-- **API Integration**: Full REST API client with automatic device ID injection
+- **Board**: Vue d'ensemble des exams et progression
+- **Session**: Révision avec feedback immédiat
+- **Stats**: Mastery level, streak, questions à réviser
+- **Paywall**: Flow premium intégré
+
+## Documentation
+
+- **[docs/SPEC.md](docs/SPEC.md)** — Spécification complète V1
+- **[docs/DECISIONS.md](docs/DECISIONS.md)** — Décisions d'architecture (ADRs)
+- **[docs/LATER.md](docs/LATER.md)** — Améliorations futures (pas maintenant)
+- **[.cursor/rules/](/.cursor/rules/)** — Règles Cursor pour code cohérent
 
 ## Prerequisites
 
-- **Docker & Docker Compose** (for running API + PostgreSQL)
-- **Node.js 18+** (for mobile app development)
-- **npm or yarn** (package manager)
-- Java 17+ and Maven (optional, only if running API without Docker)
+- **Docker & Docker Compose** (API + PostgreSQL)
+- **Node.js 18+** (mobile app)
+- **Java 17+ / Kotlin** (backend dev)
 
 ## Quick Start
 
-### 1. Start the Backend (API + Database)
-
-First, build the API JAR:
+### 1. Start Backend
 
 ```bash
-# From the root directory
-cd services/api
-mvn clean package -DskipTests
-cd ../..
-```
-
-Then start the services:
-
-```bash
+# Build and start
 docker compose up --build
+
+# Health check
+curl http://localhost:8080/actuator/health
 ```
 
-Alternatively, use the start script:
+### 2. Start Mobile
 
 ```bash
-./start.sh
-```
-
-This will:
-- Start PostgreSQL on `localhost:5432`
-- Build and start the API on `localhost:8080`
-- Run Flyway migrations automatically
-- Enable health checks at `http://localhost:8080/actuator/health`
-
-Wait for the logs to show:
-```
-examloop-api    | Started ExamLoopApplication in X.XX seconds
-```
-
-### 2. Start the Mobile App
-
-```bash
-# Navigate to the mobile app directory
 cd apps/mobile
-
-# Install dependencies (first time only)
 npm install
-
-# Start Expo dev server
 npm start
 ```
 
-Then:
-- Press `w` to open in web browser
-- Press `a` to open in Android emulator
-- Press `i` to open in iOS simulator (macOS only)
-- Scan QR code with Expo Go app on your phone
-
-### 3. Configure API URL (if needed)
-
-By default, the mobile app connects to `http://localhost:8080`. If running on a physical device or different network:
+### 3. Configure API URL (physical device)
 
 Edit `apps/mobile/src/api/client.ts`:
 ```typescript

@@ -1,0 +1,125 @@
+# 20_LEARNING_ALGORITHM — ALGORITHME HYBRIDE D'APPRENTISSAGE
+
+ExamLoop utilise un algorithme hybride combinant **Adaptive Difficulty** et **Spaced Repetition**.
+
+---
+
+## 1) ADAPTIVE DIFFICULTY (Par niveau)
+
+### Principe
+Ajuste la difficulté des questions en fonction des performances récentes.
+
+### Paramètres
+```kotlin
+ANALYSIS_WINDOW = 10        // Dernières N tentatives analysées
+PROMOTION_THRESHOLD = 0.75  // 75% → monter d'un niveau
+DEMOTION_THRESHOLD = 0.40   // 40% → descendre d'un niveau
+MIN_ATTEMPTS = 3            // Minimum avant adaptation
+```
+
+### Niveaux
+```
+EASY → MEDIUM → HARD → VERY_HARD
+```
+
+### Règle
+```
+Si successRate >= 75% → Promouvoir (niveau + 1)
+Si successRate <= 40% → Rétrograder (niveau - 1)
+Sinon → Maintenir
+```
+
+---
+
+## 2) SPACED REPETITION (Répétition espacée)
+
+### Principe
+Basé sur la courbe d'oubli d'Ebbinghaus. Les questions oubliées reviennent plus souvent.
+
+### Intervalles (jours)
+```kotlin
+val SPACED_INTERVALS = listOf(1, 3, 7, 14, 30, 90)
+```
+
+### Mastery Levels
+```kotlin
+enum class MasteryLevel {
+    NOVICE,     // < 2 tentatives
+    LEARNING,   // < 3 tentatives OU < 70% succès
+    COMPETENT,  // >= 3 tentatives ET < 85% succès
+    MASTERED    // >= 3 tentatives ET >= 85% succès
+}
+```
+
+### Probabilité d'oubli
+```kotlin
+forgettingProbability = min(1.0, daysSinceLastReview / (optimalInterval * 2.0))
+```
+
+---
+
+## 3) DISTRIBUTION STRATEGY (Équilibrage)
+
+### Stratégies
+```kotlin
+enum class DistributionStrategy(val reviewRatio: Double, val discoveryRatio: Double) {
+    EXPLORATION_FOCUSED(0.20, 0.80),   // Débutants : 80% nouvelles
+    DISCOVERY_PREFERRED(0.30, 0.70),   // Compétents : 70% nouvelles
+    BALANCED(0.50, 0.50),              // Expérimentés : équilibré
+    REVIEW_PREFERRED(0.70, 0.30),      // En difficulté : 70% révision
+    MASTERY_FOCUSED(0.80, 0.20)        // Consolidation : 80% révision
+}
+```
+
+### Détermination automatique
+```kotlin
+fun determineOptimal(totalAnswered: Int, avgSuccessRate: Double): DistributionStrategy {
+    return when {
+        totalAnswered < 10 -> EXPLORATION_FOCUSED
+        totalAnswered < 50 && avgSuccessRate > 0.7 -> DISCOVERY_PREFERRED
+        avgSuccessRate < 0.5 -> REVIEW_PREFERRED
+        else -> BALANCED
+    }
+}
+```
+
+---
+
+## 4) ORCHESTRATION HYBRIDE
+
+### Flux de sélection
+```
+1. Récupérer questions Spaced Repetition (à réviser)
+2. Récupérer questions Adaptive Difficulty (nouvelles adaptées)
+3. Déterminer DistributionStrategy selon historique
+4. Équilibrer selon la stratégie
+5. Retourner le mix optimal
+```
+
+### Balancing Strategy (en session)
+```kotlin
+enum class BalancingStrategy {
+    ADAPTIVE_PRIORITY,   // Début de session : 80% nouvelles
+    REVIEW_PRIORITY,     // Si >5 questions à revoir : prioriser révision
+    EXPLORATION_FOCUS,   // Milieu de session, peu de révisions : explorer
+    ALTERNATING          // Défaut : 50/50
+}
+```
+
+---
+
+## 5) INVARIANTS
+
+- **INV-01**: Une question ne peut pas être dans deux sessions actives simultanément
+- **INV-02**: La difficulté adaptée ne peut pas sauter plus d'un niveau à la fois
+- **INV-03**: La probabilité d'oubli est toujours entre 0 et 1
+- **INV-04**: Un utilisateur a au maximum 3 sessions actives (TTL)
+
+---
+
+## 6) CONFIGURATION UTILISATEUR (Future)
+
+L'utilisateur pourra choisir son mode préféré :
+- "Je veux réviser" → REVIEW_PREFERRED
+- "Je veux découvrir" → EXPLORATION_FOCUSED
+- "Automatique" → Déterminé par l'algorithme

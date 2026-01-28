@@ -1,0 +1,71 @@
+# 40_DATABASE — POSTGRES + FLYWAY
+
+---
+
+## 1) STACK
+
+```
+┌─────────────┐    ┌─────────┐    ┌─────────┐
+│ Spring Boot │ →  │ Flyway  │ →  │ Postgres│
+│   (JPA)     │    │ Migrate │    │   16    │
+└─────────────┘    └─────────┘    └─────────┘
+```
+
+---
+
+## 2) CONVENTION DE NOMMAGE
+
+```
+V{version}__{description}.sql
+
+V1__create_profiles_table.sql       ✅
+V2__add_premium_to_profiles.sql     ✅
+v1__create_users.sql                ❌ (minuscule)
+V1_create_users.sql                 ❌ (un seul underscore)
+```
+
+---
+
+## 3) BONNES PRATIQUES
+
+### DO ✅
+- Migrations **idempotentes** quand possible
+- **Index** sur les colonnes de recherche
+- **UUID** pour les IDs (pas d'auto-increment)
+- **TIMESTAMP WITH TIME ZONE** pour les dates
+- **NOT NULL** par défaut, nullable explicite
+
+### DON'T ❌
+- Jamais `DROP TABLE` sans backup
+- Jamais modifier une migration déjà appliquée en prod
+- Pas de données de prod dans les seeds
+- Pas de `ddl-auto: create` ou `update` en prod
+
+---
+
+## 4) CONFIGURATION
+
+```yaml
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate  # Flyway gère le schema
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+```
+
+---
+
+## 5) STRUCTURE
+
+```
+src/main/resources/db/
+├── migration/           # Migrations (toujours appliquées)
+│   ├── V1__initial_schema.sql
+│   ├── V2__add_difficulty_levels.sql
+│   └── V3__add_spaced_repetition.sql
+└── seed/                # Données de test (dev uniquement)
+    └── R__seed_questions.sql
+```

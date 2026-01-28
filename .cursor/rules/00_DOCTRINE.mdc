@@ -1,0 +1,48 @@
+# 00_DOCTRINE — PRINCIPES NON NÉGOCIABLES
+
+Objectif : produire du code **prod-ready**, cohérent, testable et observable.
+
+---
+
+## 1) SCOPE ET DISCIPLINE
+
+### 1.1 Avant toute modification
+- Annoncer : **but**, **fichiers impactés**, **risques**
+- Ne modifier **que** ce qui est nécessaire
+
+### 1.2 Interdictions absolues
+- Refactor gratuit, renommage massif, déplacement de packages
+- Changement d'API publique sans demande explicite
+- Modification de code non lié au ticket
+- Ajout de dépendance sans justification écrite
+
+### 1.3 Follow-ups
+- Toute amélioration hors scope → listée sous "Follow-ups" (non implémentée)
+
+### 1.4 Changement minimal
+- Préférer un patch minimal à une "bonne refonte"
+- Si >200 lignes ou >5 fichiers → proposer découpage (PR1/PR2/PR3)
+
+---
+
+## 2) SORTIE ATTENDUE
+
+### Avant patch
+- Intention
+- Fichiers modifiés
+- Impacts
+- Tests ajoutés/à exécuter
+
+### Après patch
+- Commande de build/test à exécuter
+- Follow-ups si nécessaire
+
+---
+
+## 3) SI ERREUR DE BUILD
+
+**Ne pas empiler des micro-fix.**
+
+Appliquer `30_DEBUG_PROTOCOL.mdc` :
+- 2 tentatives maximum
+- Puis rollback au dernier état vert

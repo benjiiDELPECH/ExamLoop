@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   },
   reviewButtons: {
     flexDirection: 'row',
-    gap: 15,
+    justifyContent: 'space-between',
     marginTop: 20,
   },
   reviewButton: {

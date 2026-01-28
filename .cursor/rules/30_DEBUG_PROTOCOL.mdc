@@ -1,0 +1,58 @@
+# 30_DEBUG_PROTOCOL — PROTOCOLE DE DEBUG
+
+---
+
+## 1) RÈGLE D'OR
+
+> 2 tentatives maximum. Puis rollback.
+
+---
+
+## 2) PROTOCOLE
+
+### Tentative 1
+1. Lire l'erreur complète
+2. Identifier la cause probable
+3. Appliquer un fix minimal
+4. Tester
+
+### Tentative 2 (si échec)
+1. Relire l'erreur avec contexte élargi
+2. Chercher dans les fichiers liés
+3. Appliquer un fix différent
+4. Tester
+
+### Si échec après 2 tentatives
+1. **STOP**
+2. Rollback au dernier état vert
+3. Documenter le problème
+4. Demander clarification
+
+---
+
+## 3) ANTI-PATTERNS
+
+```
+❌ Empiler des micro-fix sans comprendre
+❌ Modifier plusieurs fichiers à la fois "au cas où"
+❌ Ignorer les warnings
+❌ Supprimer du code "qui ne sert à rien"
+```
+
+---
+
+## 4) COMMANDES UTILES
+
+```bash
+# Voir l'état
+git status
+git diff
+
+# Rollback
+git checkout -- .
+git stash
+
+# Dernière version verte
+git log --oneline -10
+git checkout <commit>
+```

@@ -119,7 +119,7 @@ export default function BoardScreen({ navigation }: any) {
               placeholder="Description (optional)"
               value={newGoalDescription}
               onChangeText={setNewGoalDescription}
-              multiline
+              multiline={true}
               numberOfLines={3}
             />
             <View style={styles.modalButtons}>
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 10,
+    marginHorizontal: 5,
   },
   button: {
     backgroundColor: '#3700b3',
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   },
   modalButtons: {
     flexDirection: 'row',
-    gap: 10,
+    marginHorizontal: 5,
     marginTop: 10,
   },
   modalButton: {
