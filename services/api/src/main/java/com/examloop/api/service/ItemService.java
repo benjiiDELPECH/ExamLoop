@@ -70,7 +70,7 @@ public class ItemService {
                     } else {
                         // Move back to box 1
                         item.setBox(1);
-                        item.setNextReview(LocalDateTime.now().plusHours(1));
+                        item.setNextReview(LocalDateTime.now().plusDays(1));
                     }
                     return itemRepository.save(item);
                 });

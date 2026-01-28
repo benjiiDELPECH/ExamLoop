@@ -10,7 +10,7 @@ export const getDeviceId = async (): Promise<string> => {
     
     if (!deviceId) {
       // Generate a new device ID
-      deviceId = `${Device.osName}-${Device.modelName}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      deviceId = `${Device.osName}-${Device.modelName}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
       await AsyncStorage.setItem(DEVICE_ID_KEY, deviceId);
     }
     
@@ -18,6 +18,6 @@ export const getDeviceId = async (): Promise<string> => {
   } catch (error) {
     console.error('Error getting device ID:', error);
     // Fallback to a temporary ID
-    return `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `temp-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
   }
 };
