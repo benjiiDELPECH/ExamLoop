@@ -1,284 +1,342 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal } from 'react-native';
-import { getGoals, getItems, createGoal, Goal, Item } from '../api/client';
+import * as React from 'react';
+import { useCallback, useState } from 'react';
+import { View, StyleSheet, FlatList, RefreshControl } from 'react-native';
+import { 
+  Text, 
+  Button, 
+  FAB, 
+  Portal, 
+  Modal, 
+  TextInput,
+  useTheme,
+  ActivityIndicator,
+  Surface,
+  IconButton,
+  Divider
+} from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+
+import { useGoals } from '../hooks';
+import { GoalCard, EmptyStateCard, CommunityCarousel, ErrorBanner } from '../components';
+import { Goal } from '../types';
 
 export default function BoardScreen({ navigation }: any) {
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [items, setItems] = useState<Item[]>([]);
-  const [loading, setLoading] = useState(true);
+  const theme = useTheme();
+  const { myExams, communityExams, stats, loading, refreshing, refresh, loadData, createGoal, copyExam, error } = useGoals();
+  
   const [modalVisible, setModalVisible] = useState(false);
   const [newGoalTitle, setNewGoalTitle] = useState('');
   const [newGoalDescription, setNewGoalDescription] = useState('');
+  const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [goalsData, itemsData] = await Promise.all([
-        getGoals(),
-        getItems()
-      ]);
-      setGoals(goalsData);
-      setItems(itemsData);
-    } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   const handleCreateGoal = async () => {
     if (!newGoalTitle.trim()) return;
     
-    try {
-      await createGoal(newGoalTitle, newGoalDescription);
+    setCreating(true);
+    const success = await createGoal(newGoalTitle, newGoalDescription);
+    setCreating(false);
+    
+    if (success) {
       setNewGoalTitle('');
       setNewGoalDescription('');
       setModalVisible(false);
-      loadData();
-    } catch (error) {
-      console.error('Error creating goal:', error);
     }
   };
 
-  const getItemCount = (goalId: number) => {
-    return items.filter(item => item.goalId === goalId).length;
+  const handleCloseModal = () => {
+    setModalVisible(false);
+    setNewGoalTitle('');
+    setNewGoalDescription('');
   };
 
+  const renderGoalCard = ({ item }: { item: Goal }) => (
+    <GoalCard
+      goal={item}
+      onStudy={() => navigation.navigate('Session', { goalId: item.id })}
+      onAdd={() => navigation.navigate('AddItem', { goalId: item.id, goalTitle: item.title })}
+      onPress={() => navigation.navigate('AddItem', { goalId: item.id, goalTitle: item.title })}
+    />
+  );
+
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>ExamLoop Board</Text>
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={styles.button}
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
+        <View style={styles.headerTop}>
+          <View>
+            <Text variant="headlineMedium" style={styles.headerTitle}>ExamLoop</Text>
+            <Text variant="bodyMedium" style={styles.headerSubtitle}>Master your knowledge</Text>
+          </View>
+          <IconButton 
+            icon="cog" 
+            iconColor="#ffffff"
+            onPress={() => navigation.navigate('Settings')}
+          />
+        </View>
+        
+        {stats && (
+          <View style={styles.statsContainer}>
+            <View style={styles.statBox}>
+              <Text variant="headlineLarge" style={styles.statValue}>{stats.dashboard.dueCount}</Text>
+              <Text variant="bodySmall" style={styles.statLabel}>Due Today</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text variant="headlineLarge" style={styles.statValue}>{stats.dashboard.totalQuestions}</Text>
+              <Text variant="bodySmall" style={styles.statLabel}>Total</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text variant="headlineLarge" style={styles.statValue}>{stats.usage.remaining}</Text>
+              <Text variant="bodySmall" style={styles.statLabel}>Reviews Left</Text>
+            </View>
+          </View>
+        )}
+
+        <View style={styles.actionButtons}>
+          <Button 
+            mode="contained" 
+            icon="play-circle"
             onPress={() => navigation.navigate('Session')}
+            style={styles.actionButton}
+            buttonColor="#ffffff"
+            textColor={theme.colors.primary}
           >
-            <Text style={styles.buttonText}>Study Session</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.button}
+            Start Session
+          </Button>
+          <Button 
+            mode="outlined" 
+            icon="crown"
             onPress={() => navigation.navigate('Paywall')}
+            style={[styles.actionButton, styles.premiumButton]}
+            textColor="#ffffff"
           >
-            <Text style={styles.buttonText}>Go Premium</Text>
-          </TouchableOpacity>
+            {stats?.profile.premium ? 'Premium ✓' : 'Go Premium'}
+          </Button>
         </View>
       </View>
 
       {loading ? (
-        <Text style={styles.loadingText}>Loading...</Text>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" />
+          <Text style={styles.loadingText}>Loading your exams...</Text>
+        </View>
       ) : (
         <FlatList
-          data={goals}
+          data={myExams}
           keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.goalCard}
-              onPress={() => navigation.navigate('AddItem', { goalId: item.id, goalTitle: item.title })}
-            >
-              <Text style={styles.goalTitle}>{item.title}</Text>
-              {item.description && (
-                <Text style={styles.goalDescription}>{item.description}</Text>
+          renderItem={renderGoalCard}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={refresh} />
+          }
+          ListHeaderComponent={
+            <>
+              {/* Error Banner */}
+              {error && (
+                <ErrorBanner 
+                  message={error} 
+                  onRetry={refresh}
+                  type={error.includes('internet') ? 'offline' : 'error'}
+                />
               )}
-              <Text style={styles.itemCount}>{getItemCount(item.id)} items</Text>
-            </TouchableOpacity>
-          )}
+              
+              {/* Community Carousel */}
+              <CommunityCarousel
+                exams={communityExams}
+                onExamPress={(exam) => navigation.navigate('Session', { goalId: exam.id })}
+                onCopyExam={(exam) => copyExam(exam.id)}
+              />
+              
+              {/* My Exams Header */}
+              <View style={styles.myExamsHeader}>
+                <Text variant="titleMedium" style={styles.sectionTitle}>
+                  📖 My Exams
+                </Text>
+                <Button 
+                  mode="text" 
+                  icon="plus" 
+                  compact 
+                  onPress={() => setModalVisible(true)}
+                >
+                  Create
+                </Button>
+              </View>
+            </>
+          }
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No goals yet. Create one to get started!</Text>
+            <EmptyStateCard
+              emoji="✨"
+              title="Start your journey"
+              description="Create your first exam or explore community exams above!"
+              actionLabel="Create Exam"
+              onAction={() => setModalVisible(true)}
+            />
           }
         />
       )}
 
-      <TouchableOpacity
-        style={styles.fab}
+      {/* FAB */}
+      <FAB
+        icon="plus"
+        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
         onPress={() => setModalVisible(true)}
-      >
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
+      />
 
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Create New Goal</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Goal title"
-              value={newGoalTitle}
-              onChangeText={setNewGoalTitle}
-            />
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Description (optional)"
-              value={newGoalDescription}
-              onChangeText={setNewGoalDescription}
-              multiline={true}
-              numberOfLines={3}
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => {
-                  setModalVisible(false);
-                  setNewGoalTitle('');
-                  setNewGoalDescription('');
-                }}
-              >
-                <Text style={styles.buttonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.createButton]}
-                onPress={handleCreateGoal}
-              >
-                <Text style={styles.buttonText}>Create</Text>
-              </TouchableOpacity>
-            </View>
+      {/* Create Goal Modal */}
+      <Portal>
+        <Modal
+          visible={modalVisible}
+          onDismiss={handleCloseModal}
+          contentContainerStyle={[styles.modalContent, { backgroundColor: theme.colors.surface }]}
+        >
+          <Text variant="headlineSmall" style={styles.modalTitle}>Create New Exam</Text>
+          
+          <TextInput
+            label="Exam Title"
+            value={newGoalTitle}
+            onChangeText={setNewGoalTitle}
+            mode="outlined"
+            style={styles.input}
+            placeholder="e.g. Spring Security, AWS Solutions Architect"
+          />
+          
+          <TextInput
+            label="Description (optional)"
+            value={newGoalDescription}
+            onChangeText={setNewGoalDescription}
+            mode="outlined"
+            multiline
+            numberOfLines={3}
+            style={styles.input}
+            placeholder="What do you want to master?"
+          />
+
+          <View style={styles.modalActions}>
+            <Button mode="text" onPress={handleCloseModal}>
+              Cancel
+            </Button>
+            <Button 
+              mode="contained" 
+              onPress={handleCreateGoal}
+              loading={creating}
+              disabled={!newGoalTitle.trim() || creating}
+            >
+              Create
+            </Button>
           </View>
-        </View>
-      </Modal>
-    </View>
+        </Modal>
+      </Portal>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: '#6200ee',
     padding: 20,
-    paddingTop: 50,
+    paddingTop: 16,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 10,
-  },
-  buttonRow: {
+  headerTop: {
     flexDirection: 'row',
-    marginHorizontal: 5,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
-  button: {
-    backgroundColor: '#3700b3',
-    padding: 10,
-    borderRadius: 8,
+  headerTitle: {
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  headerSubtitle: {
+    opacity: 0.85,
+    marginBottom: 20,
+    color: '#ffffff',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 16,
+    paddingVertical: 16,
+  },
+  statBox: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  statLabel: {
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 4,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  actionButton: {
     flex: 1,
+    marginHorizontal: 4,
+    borderRadius: 12,
   },
-  buttonText: {
-    color: 'white',
-    textAlign: 'center',
+  premiumButton: {
+    borderColor: 'rgba(255,255,255,0.5)',
+    borderWidth: 2,
+  },
+  sectionTitle: {
     fontWeight: '600',
   },
+  myExamsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  listContent: {
+    padding: 8,
+    paddingBottom: 100,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   loadingText: {
-    textAlign: 'center',
-    marginTop: 20,
-    fontSize: 16,
-  },
-  goalCard: {
-    backgroundColor: 'white',
-    margin: 10,
-    padding: 15,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  goalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  goalDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 5,
-  },
-  itemCount: {
-    fontSize: 12,
-    color: '#999',
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 50,
-    fontSize: 16,
-    color: '#999',
+    marginTop: 12,
+    opacity: 0.7,
   },
   fab: {
     position: 'absolute',
-    right: 20,
-    bottom: 20,
-    backgroundColor: '#6200ee',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  fabText: {
-    fontSize: 32,
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    right: 16,
+    bottom: 16,
   },
   modalContent: {
-    backgroundColor: 'white',
-    borderRadius: 12,
+    margin: 20,
     padding: 20,
-    width: '85%',
-    maxWidth: 400,
+    borderRadius: 12,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
+    marginBottom: 20,
+    fontWeight: '600',
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 10,
-    fontSize: 16,
+    marginBottom: 16,
   },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  modalButtons: {
+  modalActions: {
     flexDirection: 'row',
-    marginHorizontal: 5,
-    marginTop: 10,
-  },
-  modalButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-  },
-  cancelButton: {
-    backgroundColor: '#999',
-  },
-  createButton: {
-    backgroundColor: '#6200ee',
+    justifyContent: 'flex-end',
+    marginTop: 8,
   },
 });

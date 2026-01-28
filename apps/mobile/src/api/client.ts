@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getDeviceId } from '../utils/deviceId';
+import { Goal, Question, BootstrapResponse } from '../types';
 
 // API URL - change for production
 const API_BASE_URL = 'https://ultimately-www-extract-peer.trycloudflare.com';
@@ -9,6 +10,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000,
 });
 
 // Add device ID to all requests
@@ -18,54 +20,58 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-export interface Goal {
-  id: number;
-  title: string;
-  description?: string;
-  isPublic: boolean;
-  stats?: { items: number; due: number };
-}
+// ============================================
+// Bootstrap
+// ============================================
 
-export interface Item {
-  id: number;
-  goalId: number;
-  prompt: string;
-  type: 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'OPEN';
-  choices?: Array<{ id: string; label: string }>;
-  difficulty: string;
-  chapter?: string;
-}
-
-export interface BootstrapResponse {
-  profile: { premium: boolean };
-  usage: { reviewsUsed: number; reviewsLimit: number; remaining: number };
-  dashboard: { dueCount: number; totalQuestions: number; goalsCount: number };
-}
-
-// Bootstrap API
-export const bootstrap = async (): Promise<BootstrapResponse> => {
+export async function bootstrap(): Promise<BootstrapResponse> {
   const response = await api.post('/api/v1/bootstrap', {});
   return response.data;
-};
+}
 
-// Goals API
-export const getGoals = async (): Promise<Goal[]> => {
+// ============================================
+// Goals (Exams)
+// ============================================
+
+export async function getGoals(): Promise<Goal[]> {
   const response = await api.get('/api/v1/goals');
-  return response.data.goals || [];
-};
+  const goals = response.data.goals || [];
+  // Filter: only user's own exams (not public community ones)
+  return goals.filter((g: Goal) => !g.isPublic);
+}
 
-export const createGoal = async (title: string, description?: string): Promise<Goal> => {
+export async function getPublicExams(): Promise<Goal[]> {
+  const response = await api.get('/api/v1/goals');
+  const goals = response.data.goals || [];
+  // Filter: only public community exams
+  return goals.filter((g: Goal) => g.isPublic);
+}
+
+export async function createGoal(title: string, description?: string): Promise<Goal> {
   const response = await api.post('/api/v1/goals', { title, description });
   return response.data;
-};
+}
 
-// Items (for compatibility)
-export const getItems = async (): Promise<Item[]> => {
-  // Get all questions from all goals
+export async function copyPublicExam(examId: number): Promise<Goal> {
+  // Copy a public exam to user's personal exams
+  const response = await api.post(`/api/v1/goals/${examId}/copy`, {});
+  return response.data;
+}
+
+// ============================================
+// Questions (Items)
+// ============================================
+
+export async function getItems(): Promise<Question[]> {
+  // Placeholder - returns empty for now
   return [];
-};
+}
 
-export const createItem = async (goalId: number, question: string, answer: string): Promise<any> => {
+export async function createItem(
+  goalId: number, 
+  question: string, 
+  answer: string
+): Promise<{ id: number }> {
   const response = await api.post('/api/v1/questions', { 
     goalId, 
     prompt: question, 
@@ -74,25 +80,39 @@ export const createItem = async (goalId: number, question: string, answer: strin
     difficulty: 'MEDIUM'
   });
   return response.data;
-};
+}
 
-// Session API
-export const getTodayItems = async (goalId?: number): Promise<Item[]> => {
-  const body: any = { limit: 10 };
+// ============================================
+// Session
+// ============================================
+
+export async function getTodayItems(goalId?: number): Promise<Question[]> {
+  const body: { limit: number; goalId?: number } = { limit: 10 };
   if (goalId) body.goalId = goalId;
+  
   const response = await api.post('/api/v1/sessions', body);
   return response.data.questions || [];
-};
+}
 
-export const reviewItem = async (id: number, correct: boolean): Promise<any> => {
-  const response = await api.post('/api/v1/reviews', { questionId: id, correct });
+// ============================================
+// Reviews
+// ============================================
+
+export async function reviewItem(
+  questionId: number, 
+  correct: boolean
+): Promise<any> {
+  const response = await api.post('/api/v1/reviews', { questionId, correct });
   return response.data;
-};
+}
 
-// Billing API
-export const createCheckout = async (): Promise<{ url: string }> => {
+// ============================================
+// Billing
+// ============================================
+
+export async function createCheckout(): Promise<{ url: string }> {
   const response = await api.post('/api/v1/billing/checkout', {});
   return response.data;
-};
+}
 
 export default api;

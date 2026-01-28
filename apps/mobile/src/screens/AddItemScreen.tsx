@@ -1,270 +1,242 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal } from 'react-native';
-import { getItems, createItem, Item } from '../api/client';
+import * as React from 'react';
+import { useState } from 'react';
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { 
+  Card, 
+  Text, 
+  Button, 
+  useTheme,
+  TextInput,
+  SegmentedButtons,
+  IconButton,
+  Snackbar,
+  Surface
+} from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { createItem } from '../api/client';
 
-export default function AddItemScreen({ route, navigation }: any) {
+type QuestionType = 'OPEN' | 'SINGLE_CHOICE';
+
+export default function AddItemScreen({ navigation, route }: any) {
+  const theme = useTheme();
   const { goalId, goalTitle } = route.params;
-  const [items, setItems] = useState<Item[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [question, setQuestion] = useState('');
+  
+  const [questionType, setQuestionType] = useState<QuestionType>('OPEN');
+  const [prompt, setPrompt] = useState('');
   const [answer, setAnswer] = useState('');
+  const [explanation, setExplanation] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
-  useEffect(() => {
-    loadItems();
-  }, []);
+  const handleSubmit = async () => {
+    if (!prompt.trim() || !answer.trim()) {
+      setSnackbarMessage('Please fill in both question and answer');
+      setSnackbarVisible(true);
+      return;
+    }
 
-  const loadItems = async () => {
     try {
       setLoading(true);
-      const allItems = await getItems();
-      setItems(allItems.filter(item => item.goalId === goalId));
+      await createItem(goalId, prompt, answer);
+      
+      setSnackbarMessage('Question added successfully! 🎉');
+      setSnackbarVisible(true);
+      
+      // Clear form for next question
+      setPrompt('');
+      setAnswer('');
+      setExplanation('');
     } catch (error) {
-      console.error('Error loading items:', error);
+      console.error('Error creating item:', error);
+      setSnackbarMessage('Failed to add question. Please try again.');
+      setSnackbarVisible(true);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateItem = async () => {
-    if (!question.trim() || !answer.trim()) return;
-    
-    try {
-      await createItem(goalId, question, answer);
-      setQuestion('');
-      setAnswer('');
-      setModalVisible(false);
-      loadItems();
-    } catch (error) {
-      console.error('Error creating item:', error);
-    }
-  };
-
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>{goalTitle}</Text>
-      </View>
-
-      {loading ? (
-        <Text style={styles.loadingText}>Loading...</Text>
-      ) : (
-        <FlatList
-          data={items}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.itemCard}>
-              <Text style={styles.itemLabel}>Q:</Text>
-              <Text style={styles.itemQuestion}>{item.question}</Text>
-              <Text style={styles.itemLabel}>A:</Text>
-              <Text style={styles.itemAnswer}>{item.answer}</Text>
-              <Text style={styles.itemBox}>Box: {item.box}</Text>
-            </View>
-          )}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>No items yet. Add your first flashcard!</Text>
-          }
-        />
-      )}
-
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => setModalVisible(true)}
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
       >
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
-
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add New Item</Text>
-            <Text style={styles.label}>Question:</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Enter your question"
-              value={question}
-              onChangeText={setQuestion}
-              multiline={true}
-              numberOfLines={3}
-            />
-            <Text style={styles.label}>Answer:</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Enter the answer"
-              value={answer}
-              onChangeText={setAnswer}
-              multiline={true}
-              numberOfLines={3}
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => {
-                  setModalVisible(false);
-                  setQuestion('');
-                  setAnswer('');
-                }}
-              >
-                <Text style={styles.buttonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.createButton]}
-                onPress={handleCreateItem}
-              >
-                <Text style={styles.buttonText}>Add</Text>
-              </TouchableOpacity>
+        {/* Header */}
+        <Surface style={styles.header} elevation={1}>
+          <View style={styles.headerRow}>
+            <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
+            <View style={styles.headerText}>
+              <Text variant="titleLarge">Add Question</Text>
+              <Text variant="bodySmall" style={styles.goalName}>{goalTitle}</Text>
             </View>
+            <View style={{ width: 48 }} />
           </View>
-        </View>
-      </Modal>
-    </View>
+        </Surface>
+
+        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+          {/* Question Type Selector */}
+          <Text variant="labelLarge" style={styles.label}>Question Type</Text>
+          <SegmentedButtons
+            value={questionType}
+            onValueChange={(value) => setQuestionType(value as QuestionType)}
+            buttons={[
+              { value: 'OPEN', label: 'Open Answer', icon: 'text' },
+              { value: 'SINGLE_CHOICE', label: 'Multiple Choice', icon: 'format-list-bulleted' },
+            ]}
+            style={styles.segmentedButtons}
+          />
+
+          {/* Question Input */}
+          <Card style={styles.inputCard} mode="elevated">
+            <Card.Content>
+              <TextInput
+                label="Question"
+                value={prompt}
+                onChangeText={setPrompt}
+                mode="outlined"
+                multiline
+                numberOfLines={4}
+                placeholder="What do you want to learn?"
+                style={styles.textInput}
+              />
+
+              <TextInput
+                label="Answer"
+                value={answer}
+                onChangeText={setAnswer}
+                mode="outlined"
+                multiline
+                numberOfLines={3}
+                placeholder="The correct answer"
+                style={styles.textInput}
+              />
+
+              <TextInput
+                label="Explanation (optional)"
+                value={explanation}
+                onChangeText={setExplanation}
+                mode="outlined"
+                multiline
+                numberOfLines={3}
+                placeholder="Why is this the correct answer?"
+                style={styles.textInput}
+              />
+            </Card.Content>
+          </Card>
+
+          {/* Tips */}
+          <Card style={styles.tipsCard} mode="outlined">
+            <Card.Content>
+              <Text variant="titleSmall" style={styles.tipsTitle}>💡 Tips for great questions</Text>
+              <Text variant="bodySmall" style={styles.tipText}>
+                • Be specific and clear
+              </Text>
+              <Text variant="bodySmall" style={styles.tipText}>
+                • Focus on one concept per question
+              </Text>
+              <Text variant="bodySmall" style={styles.tipText}>
+                • Add explanations to help you learn why
+              </Text>
+            </Card.Content>
+          </Card>
+        </ScrollView>
+
+        {/* Action Buttons */}
+        <Surface style={styles.footer} elevation={2}>
+          <Button 
+            mode="outlined" 
+            onPress={() => navigation.goBack()}
+            style={styles.footerButton}
+          >
+            Done
+          </Button>
+          <Button 
+            mode="contained" 
+            onPress={handleSubmit}
+            loading={loading}
+            disabled={loading || !prompt.trim() || !answer.trim()}
+            style={styles.footerButton}
+            icon="plus"
+          >
+            Add Question
+          </Button>
+        </Surface>
+      </KeyboardAvoidingView>
+
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={3000}
+        action={{
+          label: 'OK',
+          onPress: () => setSnackbarVisible(false),
+        }}
+      >
+        {snackbarMessage}
+      </Snackbar>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+  },
+  keyboardView: {
+    flex: 1,
   },
   header: {
-    backgroundColor: '#6200ee',
-    padding: 20,
-    paddingTop: 50,
+    padding: 8,
   },
-  backButton: {
-    color: 'white',
-    fontSize: 16,
-    marginBottom: 10,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  loadingText: {
-    textAlign: 'center',
-    marginTop: 20,
-    fontSize: 16,
-  },
-  itemCard: {
-    backgroundColor: 'white',
-    margin: 10,
-    padding: 15,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  itemLabel: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#6200ee',
-    marginTop: 5,
-  },
-  itemQuestion: {
-    fontSize: 16,
-    marginBottom: 10,
-  },
-  itemAnswer: {
-    fontSize: 16,
-    marginBottom: 10,
-  },
-  itemBox: {
-    fontSize: 12,
-    color: '#999',
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 50,
-    fontSize: 16,
-    color: '#999',
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    backgroundColor: '#6200ee',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
+  headerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
   },
-  fabText: {
-    fontSize: 32,
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  modalOverlay: {
+  headerText: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
     alignItems: 'center',
   },
-  modalContent: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    width: '85%',
-    maxWidth: 400,
+  goalName: {
+    opacity: 0.6,
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
+  content: {
+    flex: 1,
+  },
+  contentContainer: {
+    padding: 16,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 5,
-    color: '#333',
+    marginBottom: 8,
+    marginTop: 8,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 10,
-    fontSize: 16,
+  segmentedButtons: {
+    marginBottom: 20,
   },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
+  inputCard: {
+    marginBottom: 16,
   },
-  modalButtons: {
+  textInput: {
+    marginBottom: 16,
+  },
+  tipsCard: {
+    backgroundColor: 'rgba(99, 102, 241, 0.05)',
+  },
+  tipsTitle: {
+    marginBottom: 8,
+    color: '#6366f1',
+  },
+  tipText: {
+    opacity: 0.7,
+    marginVertical: 2,
+  },
+  footer: {
     flexDirection: 'row',
-    marginHorizontal: 5,
-    marginTop: 10,
+    padding: 16,
+    justifyContent: 'space-between',
   },
-  modalButton: {
+  footerButton: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
-  },
-  buttonText: {
-    color: 'white',
-    textAlign: 'center',
-    fontWeight: '600',
-  },
-  cancelButton: {
-    backgroundColor: '#999',
-  },
-  createButton: {
-    backgroundColor: '#6200ee',
+    marginHorizontal: 4,
   },
 });
