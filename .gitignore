@@ -1,0 +1,31 @@
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+.expo/
+.expo-shared/
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+
+# Build artifacts
+target/
+build/
+*.class
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+logs/
