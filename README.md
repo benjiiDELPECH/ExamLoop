@@ -41,9 +41,25 @@ This is a monorepo containing:
 
 ### 1. Start the Backend (API + Database)
 
+First, build the API JAR:
+
 ```bash
 # From the root directory
-docker-compose up --build
+cd services/api
+mvn clean package -DskipTests
+cd ../..
+```
+
+Then start the services:
+
+```bash
+docker compose up --build
+```
+
+Alternatively, use the start script:
+
+```bash
+./start.sh
 ```
 
 This will:
